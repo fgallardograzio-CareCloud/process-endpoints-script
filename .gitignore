@@ -1,0 +1,8 @@
+/.vscode/**
+!/.vscode/launch.json
+
+/node_modules*
+
+/out
+
+/src/config.js
