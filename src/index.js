@@ -10,7 +10,7 @@ async function run() {
   const processModels = await alfrescoService.getAllProcessModels();
   const envVariableDeclarations = [];
 
-  await Promise.all(processModels.map(async processModel => {
+  for (const processModel of processModels) {
     // Get workflow name (use model name instead of process name)
     const workflowName = processModel.name;
 
@@ -19,7 +19,7 @@ async function run() {
       xml = await alfrescoService.getProcessBPMNFile(processModel.id);
     } catch (error) {
       console.error(`Failed to get BPMN file for process "${workflowName}" with ID ${processModel.id}`, error);
-      return;
+      continue;
     }
 
     const model = bpmnUtils.getObjectFromXML(xml);
@@ -32,17 +32,17 @@ async function run() {
       modelRestCallTasksNodes = bpmnUtils.getRestCallTasksNodes(modelDefinitionProcessNode);
     } catch (error) {
       console.info(`Workflow REST call tasks not found for process "${workflowName}" with ID ${processModel.id}`, error);
-      return;
+      continue;
     }
 
-    modelRestCallTasksNodes.forEach(modelServiceTaskNode => {
+    for (const modelServiceTaskNode of modelRestCallTasksNodes) {
       // Get REST call task name
       let taskName;
       try {
         taskName = bpmnUtils.getTaskNameFromRestCallTaskNode(modelServiceTaskNode);
       } catch (error) {
         console.info(`REST call task name not found in process "${workflowName}" with ID ${processModel.id}`, error);
-        return;
+        continue;
       }
 
       // Get REST call task's base endpoint
@@ -51,7 +51,7 @@ async function run() {
         baseEndpoint = bpmnUtils.getBaseEndpointFromRestCallTaskNode(modelServiceTaskNode, alfrescoEndpoints);
       } catch (error) {
         console.info(`Base endpoint not found in task "${taskName}" for process "${workflowName}" with ID ${processModel.id}`, error);
-        return;
+        continue;
       }
 
       // Generate environment variable declaration
@@ -85,7 +85,7 @@ async function run() {
           console.error(`Failed to update XML model in task "${taskName}" for process "${workflowName}" with ID ${processModel.id}`, error);
         }
       }
-    });
+    }
 
     if (config.updateProcessesContent) {
       // Upload updated process model
@@ -97,15 +97,19 @@ async function run() {
         console.error(`Failed to upload the updated process model for process "${workflowName}" with ID ${processModel.id}`, error);
       }
     }
-  }));
+  }
 
   if (config.publishAppsAfterProcessUpdate) {
     // Publish all apps
-    try {
-      await alfrescoService.publishApps();
-      console.log('Published all apps');
-    } catch (error) {
-      console.error('Failed to publish apps', error);
+    const allApps = await alfrescoService.getAllApps();
+
+    for (const app of allApps) {
+      try {
+        await alfrescoService.publishApp(app.id);
+        console.log(`Published app "${app.name}" with ID ${app.id}`);
+      } catch (error) {
+        console.error(`Failed to publish app "${app.name}" with ID ${app.id}`, error);
+      }
     }
   }
 
@@ -115,7 +119,7 @@ async function run() {
     await fileUtils.writeEnvFile(config.envOutputFile, envVariableDeclarationsText);
     console.log(`Saved environment variables file to ${config.envOutputFile}`);
   } catch (error) {
-    console.error(`Error when trying to save environment variables file to ${config.envOutputFile}`, error);
+    console.error(`Failed to save environment variables file to ${config.envOutputFile}`, error);
   }
 }
 

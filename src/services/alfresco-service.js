@@ -14,14 +14,18 @@ const alfrescoApi = axios.create({
   },
 });
 
-module.exports.getAllProcessModels = async function () {
+async function getAllModels(modelType) {
   const {data} = await alfrescoApi.get('/enterprise/models', {
     params: {
-      modelType: 0,
+      modelType,
     },
   });
 
   return data.data;
+}
+
+module.exports.getAllProcessModels = async function () {
+  return getAllModels(0);
 };
 
 module.exports.getAdminEndpoints = async function () {
@@ -34,26 +38,23 @@ module.exports.getAdminEndpoints = async function () {
   return data;
 };
 
+module.exports.getAllApps = async function () {
+  return getAllModels(3);
+}
+
 module.exports.getProcessBPMNFile = async function (processModelId) {
   const {data} = await alfrescoApi.get(`/enterprise/models/${processModelId}/bpmn20`);
 
   return data;
 };
 
-module.exports.publishApps = async function () {
-  const {data} = await alfrescoApi.get(`/enterprise/models`, {
-    params: {
-      modelType: 3,
-    },
+module.exports.publishApp = async function (appId) {
+  const {data} = await alfrescoApi.post(`/enterprise/app-definitions/${appId}/publish`, {
+    'comment': '[EAG-4951] Published automatically after updating variables and endpoints in related processes',
+    'force': true
   });
-  const allApps = data.data;
 
-  await Promise.all(allApps.map(async app => {
-    await alfrescoApi.post(`/enterprise/app-definitions/${app.id}/publish`, {
-      'comment': '[EAG-4951] Published automatically after updating variables and endpoints in related processes',
-      'force': true
-    });
-  }));
+  return data;
 };
 
 module.exports.updateProcessModel = async function (processModelId, bpmnXml) {
