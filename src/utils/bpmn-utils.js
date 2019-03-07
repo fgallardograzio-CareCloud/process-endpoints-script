@@ -101,7 +101,7 @@ module.exports.updateRestUrlInRestCallTaskNode = function (modelServiceTaskNode,
   const activitiFields = filterXMLElementNodesByName(extensionElements, 'activiti:field');
   const restUrlNode = activitiFields.find(node => node.attributes && node.attributes.name === 'restUrl');
   const restUrlValueNode = getXMLElementNodeByName(restUrlNode, 'activiti:string');
-  const restUrl = getXMLCdataValue(restUrlValueNode);
+  const restUrl = getXMLCdataValue(restUrlValueNode).replace(/^\/+/, '');
   const newRestUrl = `\${${variableName}}/${restUrl}`;
 
   setXMLCdataValue(restUrlValueNode, newRestUrl);
