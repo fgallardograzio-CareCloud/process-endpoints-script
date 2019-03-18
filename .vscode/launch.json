@@ -13,6 +13,16 @@
         "<node_internals>/**/*.js",
         "${workspaceFolder}/node_modules/**/*.js"
       ]
+    },
+    {
+      "type": "node",
+      "request": "launch",
+      "name": "Run check",
+      "program": "${workspaceFolder}/src/check.js",
+      "skipFiles": [
+        "<node_internals>/**/*.js",
+        "${workspaceFolder}/node_modules/**/*.js"
+      ]
     }
   ]
 }

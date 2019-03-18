@@ -1,0 +1,17 @@
+module.exports = [
+  'clinicalApiEndpoint',
+  'conductorEndpoint',
+  'dataHandlerBaseUrlEndpoint',
+  'dataHandlerServiceEndpoint',
+  'deepstreamApiEndpoint',
+  'eaglesRulesApiEndpoint',
+  'eagleSearchEndpoint',
+  'gatewayApiEndpoint',
+  'quippeApiEndpoint',
+  'schedulerApiEndpoint',
+  'workflowServiceEndpoint',
+  'clarityRulesEngineEndpoint',
+  'eagleAbacEndpoint',
+  'financialsApiEndpoint',
+  'fhirApiEndpoint',
+];

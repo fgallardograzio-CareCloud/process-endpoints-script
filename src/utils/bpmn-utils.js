@@ -44,13 +44,33 @@ module.exports.addWorkflowVariableDeclarationNode = function (modelDefinitionPro
   });
 };
 
+module.exports.checkBaseEndpointInRestCallTaskNode = function (modelServiceTaskNode) {
+  const extensionElements = getXMLElementNodeByName(modelServiceTaskNode, 'extensionElements');
+  const activitiFields = filterXMLElementNodesByName(extensionElements, 'activiti:field');
+  const baseEndpointNode = activitiFields.find(node => node.attributes && node.attributes.name === 'baseEndpoint');
+
+  return !!baseEndpointNode;
+}
+
 module.exports.getBaseEndpointFromRestCallTaskNode = function (modelServiceTaskNode, alfrescoEndpoints) {
   const extensionElements = getXMLElementNodeByName(modelServiceTaskNode, 'extensionElements');
   const activitiFields = filterXMLElementNodesByName(extensionElements, 'activiti:field');
   const baseEndpointNode = activitiFields.find(node => node.attributes && node.attributes.name === 'baseEndpoint');
   const baseEndpointValueNode = getXMLElementNodeByName(baseEndpointNode, 'activiti:string');
   const baseEndpointId = parseInt(getXMLCdataValue(baseEndpointValueNode), 10);
+
+  const baseEndpointNameNode = activitiFields.find(node => node.attributes && node.attributes.name === 'baseEndpointName');
+  const baseEndpointNameValueNode = getXMLElementNodeByName(baseEndpointNameNode, 'activiti:string');
+  const baseEndpointName = getXMLCdataValue(baseEndpointNameValueNode);
+
   const baseEndpointData = alfrescoEndpoints.find(endpoint => endpoint.id === baseEndpointId);
+  if (!baseEndpointData) {
+    console.log(`Base endpoint "${baseEndpointName}" with ID ${baseEndpointId} is used in task but not found defined in Alfresco Admin. Falling back to using its name directly`);
+    return {
+      name: baseEndpointName,
+    };
+  }
+
   const baseEndpointUrl = new URL(
     `${baseEndpointData.protocol}://${baseEndpointData.host}:${baseEndpointData.port}/${baseEndpointData.path}`
   ).href.replace(/[:/]+$/, '');
@@ -71,10 +91,38 @@ module.exports.getProcessDefinitionNode = function (modelNode) {
   return getXMLElementNodeByName(modelDefinitionNode, 'process');
 };
 
-module.exports.getRestCallTasksNodes = function (modelDefinitionProcessNode) {
-  const serviceTaskNodes = filterXMLElementNodesByName(modelDefinitionProcessNode, 'serviceTask')
-  return serviceTaskNodes.filter(node => node.attributes['activiti:delegateExpression'] === '${activiti_restCallDelegate}');
+module.exports.getRestCallTasksNodes = function (rootNode) {
+  const serviceTaskNodes = filterXMLElementNodesByName(rootNode, 'serviceTask');
+  const subProcessTaskNodes = filterXMLElementNodesByName(rootNode, 'subProcess');
+  const restCallTaskNodes = serviceTaskNodes ?
+    serviceTaskNodes.filter(serviceTaskNode =>
+      serviceTaskNode.attributes['activiti:delegateExpression'] === '${activiti_restCallDelegate}'
+    ) : [];
+  const subProcessRestCallTaskNodes = subProcessTaskNodes ?
+    subProcessTaskNodes.reduce((accumulator, nonRestTaskNode) => ([
+      ...accumulator,
+      ...module.exports.getRestCallTasksNodes(nonRestTaskNode),
+    ]), []) : [];
+
+  return [
+    ...restCallTaskNodes,
+    ...subProcessRestCallTaskNodes
+  ];
 };
+
+module.exports.getRestUrlInRestCallTaskNode = function (modelServiceTaskNode) {
+  const extensionElements = getXMLElementNodeByName(modelServiceTaskNode, 'extensionElements');
+  const activitiFields = filterXMLElementNodesByName(extensionElements, 'activiti:field');
+  let restUrlNode = activitiFields.find(node => node.attributes && node.attributes.name === 'restUrl');
+  if (!restUrlNode) {
+    throw new Error('no restUrl node found');
+  }
+
+  const restUrlValueNode = getXMLElementNodeByName(restUrlNode, 'activiti:string');
+  const restUrl = getXMLCdataValue(restUrlValueNode).replace(/^\/+/, '');
+
+  return restUrl;
+}
 
 module.exports.getTaskNameFromRestCallTaskNode = function (modelServiceTaskNode) {
   return modelServiceTaskNode.attributes.name;
@@ -99,10 +147,26 @@ module.exports.removeBaseEndpointNodesInRestCallTaskNode = function (modelServic
 module.exports.updateRestUrlInRestCallTaskNode = function (modelServiceTaskNode, variableName) {
   const extensionElements = getXMLElementNodeByName(modelServiceTaskNode, 'extensionElements');
   const activitiFields = filterXMLElementNodesByName(extensionElements, 'activiti:field');
-  const restUrlNode = activitiFields.find(node => node.attributes && node.attributes.name === 'restUrl');
+  let restUrlNode = activitiFields.find(node => node.attributes && node.attributes.name === 'restUrl');
+  if (!restUrlNode) {
+    restUrlNode = {
+      type: 'element',
+      name: 'activiti:field',
+      attributes: {name: 'restUrl'},
+      elements: [{
+        type: 'element',
+        name: 'activiti:string',
+        elements: [{
+          type: 'cdata',
+          cdata: '',
+        }],
+      }],
+    };
+    extensionElements.elements.push(restUrlNode);
+  }
   const restUrlValueNode = getXMLElementNodeByName(restUrlNode, 'activiti:string');
   const restUrl = getXMLCdataValue(restUrlValueNode).replace(/^\/+/, '');
-  const newRestUrl = `\${${variableName}}/${restUrl}`;
+  const newRestUrl = `\${${variableName}}/${restUrl}`.replace(/\/+$/, '');
 
   setXMLCdataValue(restUrlValueNode, newRestUrl);
 };

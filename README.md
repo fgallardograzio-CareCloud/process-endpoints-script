@@ -16,7 +16,14 @@ You can see a sample configuration in `src/config.sample.js`, with the required 
 | `publishAppsAfterProcessUpdate` | Boolean | If `true`, all Alfresco apps will be published, and linked to the latest version of the updated processes. |
 
 
-### Run the script
+### Run the update script
+Get a sample environment file with variable definitions for all base endpoints being used and, if enabled in the configuration file, also update and publish all processes and apps.
 ```
 node src/index.js
+```
+
+### Run the check script
+Check all processes and see if there's still a base endpoint set, a missing url, an invalid url, or an invalid endpoint.
+```
+node src/check.js
 ```
